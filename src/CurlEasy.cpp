@@ -45,7 +45,9 @@ void CurlEasy::perform()
     else
         runningOnMulti_ = CurlMulti::threadInstance();
 
-    runningOnMulti_->addTransfer(this);
+    if(runningOnMulti_) {  // if we aren't shutting down
+        runningOnMulti_->addTransfer(this);
+    }
 }
 
 void CurlEasy::abort()

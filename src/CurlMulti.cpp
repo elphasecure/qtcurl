@@ -8,6 +8,11 @@
 #include <QTimer>
 #include <QSocketNotifier>
 #include "CurlEasy.h"
+#include <QCoreApplication>
+
+namespace {
+QThreadStorage<std::shared_ptr<CurlMulti>> multiInstances;
+}
 
 struct CurlMultiSocket
 {
@@ -31,6 +36,12 @@ CurlMulti::CurlMulti(QObject *parent)
 
     timer_->setSingleShot(true);
     connect(timer_, &QTimer::timeout, this, &CurlMulti::curlMultiTimeout);
+    connect(qApp, &QCoreApplication::aboutToQuit, [] () {
+        if (multiInstances.hasLocalData()) {
+            // automatically discard instance
+            multiInstances.setLocalData(std::shared_ptr<CurlMulti>());
+        }
+    });
 }
 
 CurlMulti::~CurlMulti()
@@ -46,11 +57,10 @@ CurlMulti::~CurlMulti()
 
 CurlMulti *CurlMulti::threadInstance()
 {
-    static QThreadStorage<std::shared_ptr<CurlMulti>> instances;
-    if (!instances.hasLocalData()) {
-        instances.setLocalData(std::make_shared<CurlMulti>());
+    if (!multiInstances.hasLocalData()) {
+        multiInstances.setLocalData(std::make_shared<CurlMulti>());
     }
-    return instances.localData().get();
+    return multiInstances.localData().get();
 }
 
 void CurlMulti::addTransfer(CurlEasy *transfer)
